@@ -23,22 +23,27 @@ const Dashboard = () => {
             console.log(error)
         }
     }
+    
     const getGenderedUsers = async () => {
         try {
-            const response = await axios.get('http://localhost:8000/gendered-users', {
-                params: {gender: user?.gender_interest}
-            })
-            setGenderedUsers(response.data)
+            // Only proceed if the user object (and thus gender_interest) is available
+            if (user?.gender_interest) {
+                 const response = await axios.get('http://localhost:8000/gendered-users', {
+                    params: {gender: user.gender_interest}
+                })
+                setGenderedUsers(response.data)
+            }
         } catch (error) {
             console.log(error)
         }
     }
 
+    // Effect 1: Fetch current user data on component mount
     useEffect(() => {
         getUser()
-
     }, [])
 
+    // Effect 2: Fetch gendered users only after current user data is loaded
     useEffect(() => {
         if (user) {
             getGenderedUsers()
@@ -51,7 +56,8 @@ const Dashboard = () => {
                 userId,
                 matchedUserId
             })
-            getUser()
+            // Refresh user data to update the matches list
+            getUser() 
         } catch (err) {
             console.log(err)
         }
@@ -68,7 +74,8 @@ const Dashboard = () => {
     const outOfFrame = (name) => {
         console.log(name + ' left the screen!')
     }
-
+    
+    // Calculate filtered list. This will be null/undefined until both user and genderedUsers are fetched.
     const matchedUserIds = user?.matches.map(({user_id}) => user_id).concat(userId)
 
     const filteredGenderedUsers = genderedUsers?.filter(genderedUser => !matchedUserIds.includes(genderedUser.user_id))
@@ -77,13 +84,19 @@ const Dashboard = () => {
     console.log('filteredGenderedUsers ', filteredGenderedUsers)
     return (
         <>
-            {user &&
+            {/* THE FIX: Check that both 'user' is loaded AND 'filteredGenderedUsers' 
+                is defined before attempting to render the complex swipe logic. 
+                This prevents the TinderCard library from crashing due to undefined data.
+            */}
+            {user && filteredGenderedUsers &&
             <div className="dashboard">
                 <ChatContainer user={user}/>
+                
                 <div className="swipe-container">
                     <div className="card-container">
 
-                        {filteredGenderedUsers?.map((genderedUser) =>
+                        {/* Since we checked 'filteredGenderedUsers' above, we can safely map over it here */}
+                        {filteredGenderedUsers.map((genderedUser) =>
                             <TinderCard
                                 className="swipe"
                                 key={genderedUser.user_id}
@@ -102,6 +115,9 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>}
+            
+            {/* Optional: Render a loading state while waiting for data */}
+            {!user && <p>Loading...</p>}
         </>
     )
 }
